@@ -43,7 +43,7 @@ def main():
         print(MSG_ERROR_TOKEN)
         return
     
-    debug = os.getenv('DEBUG', 'false').lower() == 'true')
+    debug = os.getenv('DEBUG', 'false').lower() == 'true'
     if debug:
         print("Debug mode enabled")
     
