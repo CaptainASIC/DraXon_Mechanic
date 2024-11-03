@@ -4,6 +4,7 @@ from discord.ext import commands
 import platform
 import psutil
 import datetime
+import distro
 from utils.constants import *
 
 class SystemCog(commands.GroupCog, name="system"):
@@ -14,17 +15,37 @@ class SystemCog(commands.GroupCog, name="system"):
         self.bot = bot
         self.system_info = {}
 
+    def get_os_info(self):
+        """Get detailed OS information"""
+        if platform.system() == "Linux":
+            return f"{distro.name(pretty=True)}"
+        elif platform.system() == "Windows":
+            return platform.win32_ver()[0]
+        elif platform.system() == "Darwin":
+            return f"macOS {platform.mac_ver()[0]}"
+        else:
+            return platform.system()
+
+    def get_processor_info(self):
+        """Get detailed processor information"""
+        if platform.system() == "Linux":
+            try:
+                with open('/proc/cpuinfo', 'r') as f:
+                    for line in f:
+                        if line.startswith('model name'):
+                            return line.split(':')[1].strip()
+            except:
+                pass
+        return platform.processor() or "Unknown"
+
     @app_commands.command(name="collect", description=CMD_COLLECT_DESC)
     async def collect(self, interaction: discord.Interaction):
         """Collect system specifications"""
         self.system_info = {
-            "OS": platform.system(),
-            "OS Version": platform.version(),
+            "OS": self.get_os_info(),
             "Architecture": platform.machine(),
-            "Processor": platform.processor(),
-            "Memory Total": f"{round(psutil.virtual_memory().total / (1024.0 ** 3), 2)} GB",
-            "Memory Available": f"{round(psutil.virtual_memory().available / (1024.0 ** 3), 2)} GB",
-            "Disk Usage": f"{round(psutil.disk_usage('/').used / (1024.0 ** 3), 2)} GB / {round(psutil.disk_usage('/').total / (1024.0 ** 3), 2)} GB",
+            "Processor": self.get_processor_info(),
+            "Total RAM": f"{round(psutil.virtual_memory().total / (1024.0 ** 3), 2)} GB",
             "Collection Time": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         }
         
@@ -34,7 +55,8 @@ class SystemCog(commands.GroupCog, name="system"):
             color=COLOR_SUCCESS
         )
         
-        await interaction.response.send_message(embed=embed)
+        # Make the response ephemeral (only visible to the command user)
+        await interaction.response.send_message(embed=embed, ephemeral=True)
 
     @app_commands.command(name="show", description=CMD_SHOW_DESC)
     async def show(self, interaction: discord.Interaction):
