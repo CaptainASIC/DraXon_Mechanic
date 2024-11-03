@@ -4,7 +4,7 @@ from discord.ext import commands
 from datetime import datetime
 from utils.constants import *
 
-class SystemModal(discord.ui.Modal, title="System Information"):
+class SystemSpecsModal(discord.ui.Modal, title="System Specifications"):
     def __init__(self, cog):
         super().__init__()
         self.cog = cog
@@ -39,6 +39,25 @@ class SystemModal(discord.ui.Modal, title="System Information"):
         required=True
     )
 
+    async def on_submit(self, interaction: discord.Interaction):
+        await self.cog.save_system_info(
+            interaction.user.id,
+            str(self.os),
+            str(self.cpu),
+            str(self.gpu),
+            str(self.memory),
+            str(self.storage)
+        )
+        
+        # After saving system specs, show the peripherals modal
+        await interaction.response.send_modal(PeripheralsModal(self.cog, update_only=True))
+
+class PeripheralsModal(discord.ui.Modal, title="Input Devices"):
+    def __init__(self, cog, update_only=False):
+        super().__init__()
+        self.cog = cog
+        self.update_only = update_only
+
     keyboard = discord.ui.TextInput(
         label="Keyboard",
         placeholder="e.g., Keychron Q1 w/ Gateron Browns",
@@ -59,17 +78,14 @@ class SystemModal(discord.ui.Modal, title="System Information"):
     )
 
     async def on_submit(self, interaction: discord.Interaction):
-        await self.cog.save_system_info(
-            interaction.user.id,
-            str(self.os),
-            str(self.cpu),
-            str(self.gpu),
-            str(self.memory),
-            str(self.storage),
-            str(self.keyboard),
-            str(self.mouse),
-            str(self.other_controllers)
-        )
+        if self.update_only:
+            # Update only peripherals
+            await self.cog.update_peripherals(
+                interaction.user.id,
+                str(self.keyboard),
+                str(self.mouse),
+                str(self.other_controllers)
+            )
         
         embed = discord.Embed(
             title=f"{ICON_SUCCESS} System Information Saved",
@@ -85,14 +101,18 @@ class SystemCog(commands.GroupCog, name="system"):
         super().__init__()
         self.bot = bot
 
-    async def save_system_info(self, user_id, os, cpu, gpu, memory, storage, keyboard=None, mouse=None, other_controllers=None):
-        """Save system information to database"""
-        await self.bot.db.save_system_info(user_id, os, cpu, gpu, memory, storage, keyboard, mouse, other_controllers)
+    async def save_system_info(self, user_id, os, cpu, gpu, memory, storage):
+        """Save core system information to database"""
+        await self.bot.db.save_system_info(user_id, os, cpu, gpu, memory, storage)
+
+    async def update_peripherals(self, user_id, keyboard, mouse, other_controllers):
+        """Update peripherals information in database"""
+        await self.bot.db.update_peripherals(user_id, keyboard, mouse, other_controllers)
 
     @app_commands.command(name="collect", description=CMD_COLLECT_DESC)
     async def collect(self, interaction: discord.Interaction):
         """Open modal to collect system specifications"""
-        modal = SystemModal(self)
+        modal = SystemSpecsModal(self)
         await interaction.response.send_modal(modal)
 
     @app_commands.command(name="show", description=CMD_SHOW_DESC)
@@ -122,12 +142,12 @@ class SystemCog(commands.GroupCog, name="system"):
         embed.add_field(name="Memory", value=info['memory'], inline=True)
         embed.add_field(name="Storage", value=info['storage'], inline=True)
         
-        # Input devices (only show if they exist)
-        if info['keyboard']:
+        # Input devices (only show if they exist and have values)
+        if 'keyboard' in info and info['keyboard']:
             embed.add_field(name="Keyboard", value=info['keyboard'], inline=True)
-        if info['mouse']:
+        if 'mouse' in info and info['mouse']:
             embed.add_field(name="Mouse", value=info['mouse'], inline=True)
-        if info['other_controllers']:
+        if 'other_controllers' in info and info['other_controllers']:
             embed.add_field(name="Other Controllers", value=info['other_controllers'], inline=False)
 
         await interaction.response.send_message(embed=embed)

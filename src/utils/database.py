@@ -30,6 +30,14 @@ class Database:
             ON system_info(updated_at)
         ''')
 
+        # Add new columns if they don't exist
+        try:
+            await conn.execute('ALTER TABLE system_info ADD COLUMN IF NOT EXISTS keyboard TEXT')
+            await conn.execute('ALTER TABLE system_info ADD COLUMN IF NOT EXISTS mouse TEXT')
+            await conn.execute('ALTER TABLE system_info ADD COLUMN IF NOT EXISTS other_controllers TEXT')
+        except Exception as e:
+            print(f"Error adding new columns: {str(e)}")
+
     async def connect(self):
         """Connect to PostgreSQL database and initialize if needed"""
         try:
@@ -63,19 +71,25 @@ class Database:
         if self.pool:
             await self.pool.close()
 
-    async def save_system_info(self, user_id: int, os: str, cpu: str, gpu: str, memory: str, storage: str, 
-                             keyboard: str = None, mouse: str = None, other_controllers: str = None):
-        """Save system information to database"""
+    async def save_system_info(self, user_id: int, os: str, cpu: str, gpu: str, memory: str, storage: str):
+        """Save core system information to database"""
         async with self.pool.acquire() as conn:
             await conn.execute('''
-                INSERT INTO system_info 
-                (user_id, os, cpu, gpu, memory, storage, keyboard, mouse, other_controllers, updated_at)
-                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+                INSERT INTO system_info (user_id, os, cpu, gpu, memory, storage, updated_at)
+                VALUES ($1, $2, $3, $4, $5, $6, $7)
                 ON CONFLICT (user_id) 
                 DO UPDATE SET 
-                    os = $2, cpu = $3, gpu = $4, memory = $5, storage = $6,
-                    keyboard = $7, mouse = $8, other_controllers = $9, updated_at = $10
-            ''', user_id, os, cpu, gpu, memory, storage, keyboard, mouse, other_controllers, datetime.now())
+                    os = $2, cpu = $3, gpu = $4, memory = $5, storage = $6, updated_at = $7
+            ''', user_id, os, cpu, gpu, memory, storage, datetime.now())
+
+    async def update_peripherals(self, user_id: int, keyboard: str = None, mouse: str = None, other_controllers: str = None):
+        """Update peripherals information in database"""
+        async with self.pool.acquire() as conn:
+            await conn.execute('''
+                UPDATE system_info 
+                SET keyboard = $2, mouse = $3, other_controllers = $4, updated_at = $5
+                WHERE user_id = $1
+            ''', user_id, keyboard, mouse, other_controllers, datetime.now())
 
     async def get_system_info(self, user_id: int):
         """Get system information from database"""
