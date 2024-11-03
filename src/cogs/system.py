@@ -4,10 +4,30 @@ from discord.ext import commands
 from datetime import datetime
 from utils.constants import *
 
-class SystemSpecsModal(discord.ui.Modal, title="System Specifications"):
-    def __init__(self, cog):
+class AddPeripheralsButton(discord.ui.View):
+    def __init__(self, cog, user_id: int):
         super().__init__()
         self.cog = cog
+        self.user_id = user_id
+
+    @discord.ui.button(label="Add Input Devices", style=discord.ButtonStyle.primary)
+    async def add_peripherals(self, interaction: discord.Interaction, button: discord.ui.Button):
+        # Get existing peripheral info
+        info = await self.cog.bot.db.get_system_info(self.user_id)
+        await interaction.response.send_modal(PeripheralsModal(self.cog, info))
+
+class SystemSpecsModal(discord.ui.Modal, title="System Specifications"):
+    def __init__(self, cog, existing_info=None):
+        super().__init__()
+        self.cog = cog
+        
+        # Pre-populate fields if info exists
+        if existing_info:
+            self.os.default = existing_info['os']
+            self.cpu.default = existing_info['cpu']
+            self.gpu.default = existing_info['gpu']
+            self.memory.default = existing_info['memory']
+            self.storage.default = existing_info['storage']
 
     os = discord.ui.TextInput(
         label="Operating System",
@@ -49,14 +69,28 @@ class SystemSpecsModal(discord.ui.Modal, title="System Specifications"):
             str(self.storage)
         )
         
-        # After saving system specs, show the peripherals modal
-        await interaction.response.send_modal(PeripheralsModal(self.cog, update_only=True))
+        embed = discord.Embed(
+            title=f"{ICON_SUCCESS} System Information Saved",
+            description="Your system information has been saved. Would you like to add information about your input devices?",
+            color=COLOR_SUCCESS
+        )
+        # Show button to add peripherals
+        view = AddPeripheralsButton(self.cog, interaction.user.id)
+        await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
 
 class PeripheralsModal(discord.ui.Modal, title="Input Devices"):
-    def __init__(self, cog, update_only=False):
+    def __init__(self, cog, existing_info=None):
         super().__init__()
         self.cog = cog
-        self.update_only = update_only
+        
+        # Pre-populate fields if info exists
+        if existing_info:
+            if existing_info.get('keyboard'):
+                self.keyboard.default = existing_info['keyboard']
+            if existing_info.get('mouse'):
+                self.mouse.default = existing_info['mouse']
+            if existing_info.get('other_controllers'):
+                self.other_controllers.default = existing_info['other_controllers']
 
     keyboard = discord.ui.TextInput(
         label="Keyboard",
@@ -78,18 +112,16 @@ class PeripheralsModal(discord.ui.Modal, title="Input Devices"):
     )
 
     async def on_submit(self, interaction: discord.Interaction):
-        if self.update_only:
-            # Update only peripherals
-            await self.cog.update_peripherals(
-                interaction.user.id,
-                str(self.keyboard),
-                str(self.mouse),
-                str(self.other_controllers)
-            )
+        await self.cog.update_peripherals(
+            interaction.user.id,
+            str(self.keyboard),
+            str(self.mouse),
+            str(self.other_controllers)
+        )
         
         embed = discord.Embed(
-            title=f"{ICON_SUCCESS} System Information Saved",
-            description="Your system information has been saved. Use `/system show` to display it.",
+            title=f"{ICON_SUCCESS} Input Devices Saved",
+            description="Your input device information has been saved. Use `/system show` to display all your system information.",
             color=COLOR_SUCCESS
         )
         await interaction.response.send_message(embed=embed, ephemeral=True)
@@ -112,7 +144,9 @@ class SystemCog(commands.GroupCog, name="system"):
     @app_commands.command(name="collect", description=CMD_COLLECT_DESC)
     async def collect(self, interaction: discord.Interaction):
         """Open modal to collect system specifications"""
-        modal = SystemSpecsModal(self)
+        # Get existing info if available
+        existing_info = await self.bot.db.get_system_info(interaction.user.id)
+        modal = SystemSpecsModal(self, existing_info)
         await interaction.response.send_modal(modal)
 
     @app_commands.command(name="show", description=CMD_SHOW_DESC)
