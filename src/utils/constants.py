@@ -26,5 +26,5 @@ MSG_COLLECTED = "System specifications have been captured. Use `/system-show` to
 MSG_ERROR_TOKEN = "Error: DISCORD_TOKEN environment variable not set"
 
 # Version info
-APP_VERSION = "1.0.0"
+APP_VERSION = "1.1.0"
 BUILD_DATE = "Nov 2024"

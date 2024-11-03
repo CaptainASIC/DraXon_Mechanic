@@ -39,6 +39,25 @@ class SystemModal(discord.ui.Modal, title="System Information"):
         required=True
     )
 
+    keyboard = discord.ui.TextInput(
+        label="Keyboard",
+        placeholder="e.g., Keychron Q1 w/ Gateron Browns",
+        required=False
+    )
+
+    mouse = discord.ui.TextInput(
+        label="Mouse",
+        placeholder="e.g., Logitech G Pro X Superlight",
+        required=False
+    )
+
+    other_controllers = discord.ui.TextInput(
+        label="Other Controllers",
+        placeholder="e.g., Xbox Elite Controller, HOTAS",
+        required=False,
+        style=discord.TextStyle.paragraph
+    )
+
     async def on_submit(self, interaction: discord.Interaction):
         await self.cog.save_system_info(
             interaction.user.id,
@@ -46,7 +65,10 @@ class SystemModal(discord.ui.Modal, title="System Information"):
             str(self.cpu),
             str(self.gpu),
             str(self.memory),
-            str(self.storage)
+            str(self.storage),
+            str(self.keyboard),
+            str(self.mouse),
+            str(self.other_controllers)
         )
         
         embed = discord.Embed(
@@ -63,9 +85,9 @@ class SystemCog(commands.GroupCog, name="system"):
         super().__init__()
         self.bot = bot
 
-    async def save_system_info(self, user_id, os, cpu, gpu, memory, storage):
+    async def save_system_info(self, user_id, os, cpu, gpu, memory, storage, keyboard=None, mouse=None, other_controllers=None):
         """Save system information to database"""
-        await self.bot.db.save_system_info(user_id, os, cpu, gpu, memory, storage)
+        await self.bot.db.save_system_info(user_id, os, cpu, gpu, memory, storage, keyboard, mouse, other_controllers)
 
     @app_commands.command(name="collect", description=CMD_COLLECT_DESC)
     async def collect(self, interaction: discord.Interaction):
@@ -93,11 +115,20 @@ class SystemCog(commands.GroupCog, name="system"):
             color=COLOR_INFO
         )
 
+        # Core system specs
         embed.add_field(name="Operating System", value=info['os'], inline=True)
         embed.add_field(name="CPU", value=info['cpu'], inline=True)
         embed.add_field(name="GPU", value=info['gpu'], inline=True)
         embed.add_field(name="Memory", value=info['memory'], inline=True)
         embed.add_field(name="Storage", value=info['storage'], inline=True)
+        
+        # Input devices (only show if they exist)
+        if info['keyboard']:
+            embed.add_field(name="Keyboard", value=info['keyboard'], inline=True)
+        if info['mouse']:
+            embed.add_field(name="Mouse", value=info['mouse'], inline=True)
+        if info['other_controllers']:
+            embed.add_field(name="Other Controllers", value=info['other_controllers'], inline=False)
 
         await interaction.response.send_message(embed=embed)
 

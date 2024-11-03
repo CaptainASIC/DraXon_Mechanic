@@ -17,6 +17,9 @@ class Database:
                 gpu TEXT NOT NULL,
                 memory TEXT NOT NULL,
                 storage TEXT NOT NULL,
+                keyboard TEXT,
+                mouse TEXT,
+                other_controllers TEXT,
                 updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         ''')
@@ -60,16 +63,19 @@ class Database:
         if self.pool:
             await self.pool.close()
 
-    async def save_system_info(self, user_id: int, os: str, cpu: str, gpu: str, memory: str, storage: str):
+    async def save_system_info(self, user_id: int, os: str, cpu: str, gpu: str, memory: str, storage: str, 
+                             keyboard: str = None, mouse: str = None, other_controllers: str = None):
         """Save system information to database"""
         async with self.pool.acquire() as conn:
             await conn.execute('''
-                INSERT INTO system_info (user_id, os, cpu, gpu, memory, storage, updated_at)
-                VALUES ($1, $2, $3, $4, $5, $6, $7)
+                INSERT INTO system_info 
+                (user_id, os, cpu, gpu, memory, storage, keyboard, mouse, other_controllers, updated_at)
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
                 ON CONFLICT (user_id) 
                 DO UPDATE SET 
-                    os = $2, cpu = $3, gpu = $4, memory = $5, storage = $6, updated_at = $7
-            ''', user_id, os, cpu, gpu, memory, storage, datetime.now())
+                    os = $2, cpu = $3, gpu = $4, memory = $5, storage = $6,
+                    keyboard = $7, mouse = $8, other_controllers = $9, updated_at = $10
+            ''', user_id, os, cpu, gpu, memory, storage, keyboard, mouse, other_controllers, datetime.now())
 
     async def get_system_info(self, user_id: int):
         """Get system information from database"""
