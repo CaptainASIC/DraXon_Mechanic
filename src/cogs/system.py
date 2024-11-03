@@ -6,15 +6,16 @@ import psutil
 import datetime
 from utils.constants import *
 
-class SystemCog(commands.Cog):
+class SystemCog(commands.GroupCog, name="system"):
     """Cog for system-related commands"""
     
     def __init__(self, bot):
+        super().__init__()
         self.bot = bot
         self.system_info = {}
 
-    @app_commands.command(name="system-collect", description=CMD_COLLECT_DESC)
-    async def system_collect(self, interaction: discord.Interaction):
+    @app_commands.command(name="collect", description=CMD_COLLECT_DESC)
+    async def collect(self, interaction: discord.Interaction):
         """Collect system specifications"""
         self.system_info = {
             "OS": platform.system(),
@@ -35,8 +36,8 @@ class SystemCog(commands.Cog):
         
         await interaction.response.send_message(embed=embed)
 
-    @app_commands.command(name="system-show", description=CMD_SHOW_DESC)
-    async def system_show(self, interaction: discord.Interaction):
+    @app_commands.command(name="show", description=CMD_SHOW_DESC)
+    async def show(self, interaction: discord.Interaction):
         """Display collected system specifications"""
         if not self.system_info:
             embed = discord.Embed(
