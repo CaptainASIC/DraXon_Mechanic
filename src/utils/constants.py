@@ -24,3 +24,7 @@ CMD_SHOW_DESC = "Display collected system specifications"
 MSG_NO_INFO = "Please use `/system-collect` first to gather system information."
 MSG_COLLECTED = "System specifications have been captured. Use `/system-show` to display them."
 MSG_ERROR_TOKEN = "Error: DISCORD_TOKEN environment variable not set"
+
+# Version info
+APP_VERSION = "1.0.0"
+BUILD_DATE = "Nov 2024"
