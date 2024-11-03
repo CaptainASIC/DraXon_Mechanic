@@ -1,11 +1,14 @@
 import discord
 from discord import app_commands
+from discord.ext import commands
 import platform
 import psutil
 import datetime
 from utils.constants import *
 
-class SystemCommands:
+class SystemCog(commands.Cog):
+    """Cog for system-related commands"""
+    
     def __init__(self, bot):
         self.bot = bot
         self.system_info = {}
@@ -57,7 +60,5 @@ class SystemCommands:
         await interaction.response.send_message(embed=embed)
 
 async def setup(bot):
-    """Setup function for the commands cog"""
-    system_commands = SystemCommands(bot)
-    bot.tree.add_command(system_commands.system_collect)
-    bot.tree.add_command(system_commands.system_show)
+    """Setup function for the system cog"""
+    await bot.add_cog(SystemCog(bot))
