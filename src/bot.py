@@ -3,6 +3,7 @@ from discord.ext import commands
 import os
 from dotenv import load_dotenv
 from utils.constants import *
+from utils.database import Database
 
 # Load environment variables from env directory
 load_dotenv('../env/.env')
@@ -16,23 +17,37 @@ class DraXonMechanic(commands.Bot):
             command_prefix=commands.when_mentioned_or('!'),
             intents=intents,
             help_command=None,
-            application_id=os.getenv('APPLICATION_ID')  # Add application ID
+            application_id=os.getenv('APPLICATION_ID')
         )
+        
+        self.db = Database()
 
     async def setup_hook(self):
         """Setup hook for loading cogs and syncing commands"""
         try:
+            # Connect to database and initialize
+            print("Connecting to database...")
+            await self.db.connect()
+            print("Database connection established")
+            
             # Load all cogs
+            print("Loading cogs...")
             await self.load_extension('cogs.system')
-            print("Loaded system cog")
+            print("System cog loaded")
             
             # Sync commands with Discord
-            print("Starting command sync...")
+            print("Syncing commands...")
             synced = await self.tree.sync()
             print(f"Synced {len(synced)} command(s)")
             
         except Exception as e:
             print(f"Error during setup: {str(e)}")
+            raise  # Re-raise to ensure Railway restarts the bot
+
+    async def close(self):
+        """Cleanup when bot is shutting down"""
+        await self.db.close()
+        await super().close()
 
     async def on_ready(self):
         """Event handler for when the bot is ready"""

@@ -1,11 +1,60 @@
 import discord
 from discord import app_commands
 from discord.ext import commands
-import platform
-import psutil
-import datetime
-import distro
+from datetime import datetime
 from utils.constants import *
+
+class SystemModal(discord.ui.Modal, title="System Information"):
+    def __init__(self, cog):
+        super().__init__()
+        self.cog = cog
+
+    os = discord.ui.TextInput(
+        label="Operating System",
+        placeholder="e.g., Arch Linux, Windows 11, macOS Sonoma",
+        required=True
+    )
+
+    cpu = discord.ui.TextInput(
+        label="CPU",
+        placeholder="e.g., AMD Ryzen 9 5950X, Intel i9-13900K",
+        required=True
+    )
+
+    gpu = discord.ui.TextInput(
+        label="GPU",
+        placeholder="e.g., NVIDIA RTX 4090, AMD RX 7900 XTX",
+        required=True
+    )
+
+    memory = discord.ui.TextInput(
+        label="Memory",
+        placeholder="e.g., 32GB DDR5-6000",
+        required=True
+    )
+
+    storage = discord.ui.TextInput(
+        label="Storage",
+        placeholder="e.g., 2TB NVMe SSD, 8TB HDD",
+        required=True
+    )
+
+    async def on_submit(self, interaction: discord.Interaction):
+        await self.cog.save_system_info(
+            interaction.user.id,
+            str(self.os),
+            str(self.cpu),
+            str(self.gpu),
+            str(self.memory),
+            str(self.storage)
+        )
+        
+        embed = discord.Embed(
+            title=f"{ICON_SUCCESS} System Information Saved",
+            description="Your system information has been saved. Use `/system show` to display it.",
+            color=COLOR_SUCCESS
+        )
+        await interaction.response.send_message(embed=embed, ephemeral=True)
 
 class SystemCog(commands.GroupCog, name="system"):
     """Cog for system-related commands"""
@@ -13,55 +62,23 @@ class SystemCog(commands.GroupCog, name="system"):
     def __init__(self, bot):
         super().__init__()
         self.bot = bot
-        self.system_info = {}
 
-    def get_os_info(self):
-        """Get detailed OS information"""
-        if platform.system() == "Linux":
-            return f"{distro.name(pretty=True)}"
-        elif platform.system() == "Windows":
-            return platform.win32_ver()[0]
-        elif platform.system() == "Darwin":
-            return f"macOS {platform.mac_ver()[0]}"
-        else:
-            return platform.system()
-
-    def get_processor_info(self):
-        """Get detailed processor information"""
-        if platform.system() == "Linux":
-            try:
-                with open('/proc/cpuinfo', 'r') as f:
-                    for line in f:
-                        if line.startswith('model name'):
-                            return line.split(':')[1].strip()
-            except:
-                pass
-        return platform.processor() or "Unknown"
+    async def save_system_info(self, user_id, os, cpu, gpu, memory, storage):
+        """Save system information to database"""
+        await self.bot.db.save_system_info(user_id, os, cpu, gpu, memory, storage)
 
     @app_commands.command(name="collect", description=CMD_COLLECT_DESC)
     async def collect(self, interaction: discord.Interaction):
-        """Collect system specifications"""
-        self.system_info = {
-            "OS": self.get_os_info(),
-            "Architecture": platform.machine(),
-            "Processor": self.get_processor_info(),
-            "Total RAM": f"{round(psutil.virtual_memory().total / (1024.0 ** 3), 2)} GB",
-            "Collection Time": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        }
-        
-        embed = discord.Embed(
-            title=f"{ICON_SUCCESS} System Information Collected",
-            description=MSG_COLLECTED,
-            color=COLOR_SUCCESS
-        )
-        
-        # Make the response ephemeral (only visible to the command user)
-        await interaction.response.send_message(embed=embed, ephemeral=True)
+        """Open modal to collect system specifications"""
+        modal = SystemModal(self)
+        await interaction.response.send_modal(modal)
 
     @app_commands.command(name="show", description=CMD_SHOW_DESC)
     async def show(self, interaction: discord.Interaction):
         """Display collected system specifications"""
-        if not self.system_info:
+        info = await self.bot.db.get_system_info(interaction.user.id)
+        
+        if not info:
             embed = discord.Embed(
                 title=f"{ICON_ERROR} No System Information Available",
                 description=MSG_NO_INFO,
@@ -72,13 +89,15 @@ class SystemCog(commands.GroupCog, name="system"):
 
         embed = discord.Embed(
             title=f"{ICON_SYSTEM} System Specifications",
-            description=f"Collected at: {self.system_info['Collection Time']}",
+            description=f"Last Updated: {info['updated_at'].strftime('%Y-%m-%d %H:%M:%S')}",
             color=COLOR_INFO
         )
 
-        for key, value in self.system_info.items():
-            if key != "Collection Time":
-                embed.add_field(name=key, value=value, inline=True)
+        embed.add_field(name="Operating System", value=info['os'], inline=True)
+        embed.add_field(name="CPU", value=info['cpu'], inline=True)
+        embed.add_field(name="GPU", value=info['gpu'], inline=True)
+        embed.add_field(name="Memory", value=info['memory'], inline=True)
+        embed.add_field(name="Storage", value=info['storage'], inline=True)
 
         await interaction.response.send_message(embed=embed)
 
