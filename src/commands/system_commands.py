@@ -3,7 +3,7 @@ from discord import app_commands
 import platform
 import psutil
 import datetime
-from src.utils.constants import *
+from utils.constants import *
 
 class SystemCommands:
     def __init__(self, bot):

@@ -2,11 +2,11 @@ import discord
 from discord import app_commands
 import os
 from dotenv import load_dotenv
-from src.utils.constants import *
-from src.commands import setup_system_commands
+from utils.constants import *
+from commands import setup_system_commands
 
 # Load environment variables from env directory
-load_dotenv('env/.env')
+load_dotenv('../env/.env')
 
 class DraXonMechanic(discord.Client):
     def __init__(self):
